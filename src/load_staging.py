@@ -1,34 +1,31 @@
+import os
+from urllib.parse import quote_plus
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
 
-# --- Database Configuration ---
-# Put your EXACT MySQL root password here inside the quotes (special characters are handled automatically)
-DB_USER = 'root'
-DB_PASSWORD = 'Bhupathi@2004'
-DB_HOST = '127.0.0.1'
-DB_PORT = 3306
-DB_NAME = 'db_churn'
+# Load environment variables
+load_dotenv()
 
-# Create a connection URL that safely handles special characters
-connection_url = URL.create(
-    drivername="mysql+pymysql",
-    username=DB_USER,
-    password=DB_PASSWORD,
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME
-)
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = os.getenv("DB_PORT", "3306")
+DB_NAME = os.getenv("DB_NAME", "db_churn")
 
-engine = create_engine(connection_url)
+safe_password = quote_plus(DB_PASSWORD)
+connection_uri = f"mysql+pymysql://{DB_USER}:{safe_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_engine(connection_uri)
 
-# Read the raw CSV dataset
-csv_file_path = r"data\raw\Customer_Data.csv"
+# Read raw CSV data
+csv_file_path = os.path.join("p1", "data", "raw", "Customer_Data.csv")
+if not os.path.exists(csv_file_path):
+    csv_file_path = os.path.join("data", "raw", "Customer_Data.csv")
+
 print("Reading CSV data...")
 df = pd.read_csv(csv_file_path)
 
 # Load DataFrame into MySQL staging table
 print(f"Loading {len(df)} rows into 'stg_churn' table...")
-df.to_sql(name='stg_churn', con=engine, if_exists='replace', index=False)
-
-print("Load completed successfully!")
+df.to_sql(name="stg_churn", con=engine, if_exists="replace", index=False)
+print("Staging load completed successfully.")
